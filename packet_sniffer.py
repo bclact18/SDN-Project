@@ -1,6 +1,6 @@
-import scapy.all as scapy
-from sklearn.ensemble import RandomForestClassifier #used for supervised learning algo's 
-import numpy as np
+import scapy.all as scapy                               # Allows for packet sniffing, manipulation, etc. 
+from sklearn.ensemble import RandomForestClassifier     # Used for supervised learning algo's 
+import numpy as np                                      # Provides support for use of multi-dimensional arrays 
 
 def sniff_packets(interface='eth0', count=100):
     print(f"Sniffing {count} packets on interface {interface}...")
