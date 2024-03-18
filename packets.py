@@ -1,5 +1,5 @@
 from scapy import all
-from scapy.layers.l2 import Ether
+from scapy.layers.l2 import Ether, ARP
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.inet6 import IPv6
 
@@ -11,6 +11,7 @@ class packetReader:
     def __init__(self, raw):
         try:
             self.ethPacket = Ether(raw)
+            self.raw = raw
             self.type = "Ethernet"
         except:
             self.ethPacket = False
@@ -21,6 +22,18 @@ class packetReader:
         """
         try:
             return [self.ethPacket[Ether].dst, self.ethPacket[Ether].src, self.ethPacket[Ether].type]
+        except:
+            return False
+        
+    def getARPHeader(self):
+        """
+        Returns a list of ARP header fields, or false if the frame is not ARP
+        """
+        try:
+            return [self.ethPacket[ARP].hwtype, self.ethPacket[ARP].ptype,
+                    self.ethPacket[ARP].hwlen, self.ethPacket[ARP].plen, self.ethPacket[ARP].op,
+                    self.ethPacket[ARP].hwsrc, self.ethPacket[ARP].psrc,
+                    self.ethPacket[ARP].hwdst, self.ethPacket[ARP].pdst]
         except:
             return False
     
@@ -69,14 +82,19 @@ class packetReader:
                     self.ethPacket[UDP].len, self.ethPacket[UDP].chksum]
         except:
             return False
+        
+    def getRawPacket(self):
+        return self.raw
 
 if __name__ == "__main__":
     capFile = all.rdpcap("./simplecap.pcap")
-    print(capFile[0])
-    firstPacket = all.raw(capFile[0])
-    firstEth = packetReader(firstPacket)
-    print(firstEth.getEthHeader())
-    print(firstEth.getIPv4Header())
-    print(firstEth.getIPv6Header())
-    print(firstEth.getTCPHeader())
-    print(firstEth.getUDPHeader())
+    for packet in capFile:
+        print(packet)
+        raw = all.raw(packet)
+        packetClass = packetReader(raw)
+        print(packetClass.getEthHeader())
+        print(packetClass.getIPv4Header())
+        print(packetClass.getIPv6Header())
+        print(packetClass.getTCPHeader())
+        print(packetClass.getUDPHeader())
+        print(packetClass.getARPHeader(), end='\n\n')
