@@ -5,16 +5,20 @@ from scapy.layers.inet6 import IPv6
 
 class packetReader:
     """
-    Class to simplify raw packet handling.
-    Takes in a whole raw packet, converts it to a scapy ethernet frame
+    Class to simplify packet handling.
+    Takes in a whole raw packet or scapy ethernet frame and converts to a scapy ethernet frame if needed
     """
     def __init__(self, raw):
-        try:
+        if type(raw) is bytes:
             self.ethPacket = Ether(raw)
-            self.raw = raw
-            self.type = "Ethernet"
-        except:
-            self.ethPacket = False
+        elif type(raw) is Ether:
+            self.ethPacket = raw
+        else:
+            raise Exception(f"packetReader only takes scapy Ethernet frames or bytes-like objects, received {type(raw)}")
+
+    def isInitialized(self):
+        if self.ethPacket: return True
+        return False
     
     def getEthHeader(self):
         """
@@ -84,14 +88,18 @@ class packetReader:
             return False
         
     def getRawPacket(self):
-        return self.raw
+        return all.raw(self.ethPacket)
+    
+    def getScapyFrame(self):
+        return self.ethPacket
 
 if __name__ == "__main__":
+    print("Module functionality test")
     capFile = all.rdpcap("./simplecap.pcap")
     for packet in capFile:
-        print(packet)
         raw = all.raw(packet)
         packetClass = packetReader(raw)
+        print(packetClass.getScapyFrame())
         print(packetClass.getEthHeader())
         print(packetClass.getIPv4Header())
         print(packetClass.getIPv6Header())
