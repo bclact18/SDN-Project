@@ -92,17 +92,3 @@ class packetReader:
     
     def getScapyFrame(self):
         return self.ethPacket
-
-if __name__ == "__main__":
-    print("Module functionality test")
-    capFile = all.rdpcap("./simplecap.pcap")
-    for packet in capFile:
-        raw = all.raw(packet)
-        packetClass = packetReader(raw)
-        print(packetClass.getScapyFrame())
-        print(packetClass.getEthHeader())
-        print(packetClass.getIPv4Header())
-        print(packetClass.getIPv6Header())
-        print(packetClass.getTCPHeader())
-        print(packetClass.getUDPHeader())
-        print(packetClass.getARPHeader(), end='\n\n')
