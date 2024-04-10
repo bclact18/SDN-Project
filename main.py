@@ -3,6 +3,7 @@ import multiprocessing as mp
 import REST_API as rest
 import time
 import re
+import packet_sniffer as ps
 
 # Registry and decorator to add functions called with --args without explicitly coding them
 # Improper number of arguments or no arguments must be errored within the function and caught by the try block at function call
@@ -13,6 +14,7 @@ def register(callstring):
         return func
     return funcRegister
 
+# Basic driver class to add functionality and variables from flag calls
 class driver():
     def __init__(self):
         self.verbose = False
@@ -35,10 +37,13 @@ class driver():
 @register("--SNIF")
 def beginSniffing(arguments, controlObj):
     """
-    TODO: Make sniffer work
+    Starts a daemon to sniff packets and places them in a queue for processing
     """
-    if controlObj.verbose : print(f"Starting sniffer on iface {arguments[0]}") 
     controlObj.SNIF = arguments[0]
+    if controlObj.verbose : print(f"Starting sniffer on iface {controlObj.SNIF}")
+    controlObj.sniffer = mp.Process(target=ps.sniff_infinite, args=(controlObj.SNIF, controlObj.queue), daemon=True)
+    controlObj.sniffer.start()
+
 
 @register("--CTIP")
 def getControllerContact(arguments, controlObj):
@@ -48,27 +53,30 @@ def getControllerContact(arguments, controlObj):
     if controlObj.verbose : print(f"Creating REST module for IP {arguments[0]}")
     controlObj.CTIP = arguments[0]
     controlObj.restModule = rest.RestFramework(controlObj.CTIP, 'admin', 'admin')
+
     if controlObj.verbose : print("Rest object created, attempting contact")
     contact = False
-    if controlObj.restModule.get_topo()[0] != 200:
-        for attempts in range(5):
-            if controlObj.verbose : print(f"Attempt {attempts}")
-            time.sleep(5)
-            if controlObj.restModule.get_topo()[0] == 200:
-                contact = True
-                break
-    else:
-        if controlObj.verbose : print("Established contact with controller")
-        contact = True
-    if not contact:
-        raise Exception("Controller is unreachable or does not have a topology")
+    for attempts in range(5):
+        if controlObj.verbose : print(f"Attempt {attempts + 1}")
+        try:
+            response = controlObj.restModule.get_topo()[0]
+        except:
+            response = -1   
+        if response == 200:
+            contact = True
+            break
+        time.sleep(2)
+    
+    if controlObj.verbose and contact : print("Established contact with controller")
+    if not contact : raise Exception("Controller is unreachable or does not have a topology")
 
 if __name__ == "__main__":
     argumentGroups = {}
     argPrev = ""
     dataHolder = driver()
+    dataHolder.queue = mp.Queue()
 
-    #Parse the supplied flags and place them in a dictionary with their arguments
+    # Parse the supplied flags and place them in a dictionary with their arguments
     for arg in sys.argv[1:]:
         if arg[0:2] == "--":
             if arg == "--v":
@@ -82,7 +90,7 @@ if __name__ == "__main__":
         else:
             argumentGroups[argPrev].append(arg)
     
-    #If no Controller IP or Sniffer IP are supplied throw an error, these are needed to continue
+    # If no Controller IP or Sniffer IP are supplied throw an error, these are needed to continue
     if "--CTIP" not in argumentGroups:
         raise Exception("Controller IP must be specified with --CTIP [IP]")
 
@@ -90,8 +98,7 @@ if __name__ == "__main__":
         raise Exception("Interface to sniff must be specified with --SNIF [IFACE]")
     
     if dataHolder.verbose : print(f"Beginning setup with args: {argumentGroups}")
-
-    #Run through each flag's function
+    # Run through each flag's function
     for flag, params in argumentGroups.items():
         try:
             registry[flag](params, dataHolder)
@@ -101,7 +108,15 @@ if __name__ == "__main__":
             raise err
     
     if dataHolder.verbose : print("Setup complete, reading topology")
-
+    # Now that we know the controller exists, poll and store the topology
     dataHolder.readTopoInfo()
 
-    if dataHolder.verbose : print(f"Topology information: {dataHolder.topology}")
+    if dataHolder.verbose: 
+        print(f"Topology information: {dataHolder.topology}")
+        print("Beginning packet processing")
+    
+    while True:
+        print("THIS IS AN INFINITE LOOP OF TEST CODE USE KEYBOARDINTERRUPT TO STOP")
+        # We can pull the packets from the queue for processing
+        # If the queue is empty it will block the program
+        print(dataHolder.queue.get())
