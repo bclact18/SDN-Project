@@ -20,7 +20,7 @@ class RestFramework():
     # Function to issue HTTP GET request
     def get_request(self, endpoint):
         url = f"{self.base_url}{endpoint}"
-        response = requests.get(url, headers={'Accept': 'application/json'}, auth=self.auth)
+        response = requests.get(url, headers={'Accept': 'application/json'}, auth=self.auth, timeout=2)
         return response
 
     # Function to issue HTTP POST request
