@@ -1,0 +1,43 @@
+A sample flow that I got working used the URL
+    http://192.168.56.106:8181/restconf/config/opendaylight-inventory:nodes/node/openflow:1/table/0/flow/1212
+You must PUT the xml to that location, flow and table IDs must match
+
+The image EXAMPLEOFDROPFLOW.png shows the mininet test of before and after the flow in PUTXMLTEMPLATE was sent
+
+See the PUTXMLTEMPLATE for working usage of these tags
+    instructions > instruction
+        Containers for instructions and single sets of instructions (actions)
+    order
+        The order in which each instruction is done, relative to the parent container
+    apply-actions
+        Container for openflow actions
+    action
+        Container for a single action
+    order
+        Order in which each action is done, relative to the parent container
+    [ACTUAL ACTION]
+        Depends, to drop all packets place <drop-action/> here
+    
+    table_id
+        The table this flow is placed in
+    id
+        The ID of the flow itself
+    cookie_mask
+        Unknown
+    
+    match
+        Container for packet match parameters
+    ethernet-match
+        Container for ethernet-based matches
+    ethernet-source
+        Container for an ethernet-source address to match
+    address
+        The actual address
+
+    hard-timeout, cookie, idle-timeout
+        Unknown
+    
+    flow-name
+        Not sure what this does, but implies it's the name of the flow
+    priority
+        The priority of this flow relative to others, the higher the more important
