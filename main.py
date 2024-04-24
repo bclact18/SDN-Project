@@ -4,6 +4,7 @@ import REST_API as rest
 import time
 import re
 import packet_sniffer as ps
+import random
 
 # Registry and decorator to add functions called with --args without explicitly coding them
 # Improper number of arguments or no arguments must be errored within the function and caught by the try block at function call
@@ -20,6 +21,7 @@ class driver():
         self.verbose = False
         self.veryVerbose = False
         self.topology = {}
+        self.flows = {}
 
     def readTopoInfo(self):
         """
@@ -28,11 +30,20 @@ class driver():
         response = self.restModule.get_topo()[1]
         for node in response['network-topology']['topology'][0]['node']:
             if "host" in node['node-id']:
-                self.topology[node['node-id']] = [re.sub(r'host\:', '', node['node-id']),
-                                                node['host-tracker-service:addresses'][0]['ip'],
-                                                node['host-tracker-service:attachment-points'][0]['tp-id'], 
-                                                re.sub(r'(?<=openflow:\d)\:\d*' , '', node['host-tracker-service:attachment-points'][0]['tp-id'])]
+                self.topology[node['node-id']] = {'mac':node['host-tracker-service:addresses'][0]['mac'],
+                                                'ip':node['host-tracker-service:addresses'][0]['ip'],
+                                                'tp':node['host-tracker-service:attachment-points'][0]['tp-id'], 
+                                                'tp-switch':re.sub(r'(?<=openflow:\d)\:\d*' , '', node['host-tracker-service:attachment-points'][0]['tp-id'])}
 
+    def dropHost(self, switch, tableId, flowName, flowId, ethAddr, priority):
+        response = self.restModule.put_drop(switch, tableId, flowName, flowId, ethAddr, priority)
+        if response.status_code == 201:
+            self.flows[flowId] = {'switch': switch, 'tableId': tableId}
+            return True
+        elif response.status_code == 200:
+            return True
+        else:
+            return False
 
 @register("--SNIF")
 def beginSniffing(arguments, controlObj):
@@ -115,8 +126,33 @@ if __name__ == "__main__":
         print(f"Topology information: {dataHolder.topology}")
         print("Beginning packet processing")
     
+    ctr = 0
+    keys = []
     while True:
-        print("THIS IS AN INFINITE LOOP OF TEST CODE USE KEYBOARDINTERRUPT TO STOP")
-        # We can pull the packets from the queue for processing
-        # If the queue is empty it will block the program
-        print(dataHolder.queue.get())
+        pkt = dataHolder.queue.get()
+        if dataHolder.veryVerbose: print(pkt)
+        if ctr < 50:
+            ctr += 1
+        else:
+            ctr = 0
+            print(dataHolder.flows)
+            if dataHolder.flows:
+                for key in dataHolder.flows:
+                    dataHolder.restModule.delete_flow(dataHolder.flows[key]['switch'], dataHolder.flows[key]['tableId'], key)
+                    if dataHolder.verbose : print(f"Removed flow {key}")
+                    keys.append(key)
+                for key in keys:
+                    del dataHolder.flows[key]
+                keys.clear()
+            for key in dataHolder.topology:
+                if random.randrange(0, 4) == 0:
+                    dataHolder.dropHost(
+                        dataHolder.topology[key]['tp-switch'],
+                        0,
+                        random.randrange(0, 100),
+                        random.randrange(0, 100),
+                        dataHolder.topology[key]['mac'],
+                        random.randrange(0, 100)
+                    )
+                    if dataHolder.verbose : print(f"Blocking {key}")
+        
