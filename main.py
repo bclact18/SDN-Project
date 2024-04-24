@@ -1,10 +1,10 @@
-import sys
-import multiprocessing as mp
-import REST_API as rest
-import time
-import re
-import packet_sniffer as ps
-import random
+import sys                      # For parsing input parameters
+import multiprocessing as mp    # For sniffer daemon
+import REST_API as rest         # For REST object
+import time                     # Used to sleep in controller contact
+import re                       # Regex to extract switch name from termination point
+import packet_sniffer as ps     # To startup sniffer daemon
+import random                   # For Demo
 
 # Registry and decorator to add functions called with --args without explicitly coding them
 # Improper number of arguments or no arguments must be errored within the function and caught by the try block at function call
@@ -25,7 +25,7 @@ class driver():
 
     def readTopoInfo(self):
         """
-        Provides a dictionary of the host topology where the key is the host ID, and the value is a list with the MAC, IP, termination point, and switch ID
+        Provides a dictionary of the host topology where the key is the host ID, and the value is a dictionary of the MAC, IP, termination point, and switch ID
         """
         response = self.restModule.get_topo()[1]
         for node in response['network-topology']['topology'][0]['node']:
@@ -36,6 +36,9 @@ class driver():
                                                 'tp-switch':re.sub(r'(?<=openflow:\d)\:\d*' , '', node['host-tracker-service:attachment-points'][0]['tp-id'])}
 
     def dropHost(self, switch, tableId, flowName, flowId, ethAddr, priority):
+        """
+        Pushes a flow to the controller to drop the selected host, returns true if the flow exists or is pushed and false otherwise
+        """
         response = self.restModule.put_drop(switch, tableId, flowName, flowId, ethAddr, priority)
         if response.status_code == 201:
             self.flows[flowId] = {'switch': switch, 'tableId': tableId}
@@ -131,22 +134,27 @@ if __name__ == "__main__":
     while True:
         pkt = dataHolder.queue.get()
         if dataHolder.veryVerbose: print(pkt)
+
+        # For demonstration purposes we will kill a random connection every 50 packets
         if ctr < 50:
             ctr += 1
         else:
             ctr = 0
-            print(dataHolder.flows)
+            if dataHolder.verbose : print(f"Flows: {dataHolder.flows}")
             if dataHolder.flows:
                 for key in dataHolder.flows:
-                    dataHolder.restModule.delete_flow(dataHolder.flows[key]['switch'], dataHolder.flows[key]['tableId'], key)
-                    if dataHolder.verbose : print(f"Removed flow {key}")
-                    keys.append(key)
+                    resp = dataHolder.restModule.delete_flow(dataHolder.flows[key]['switch'], dataHolder.flows[key]['tableId'], key)
+                    if resp == 200:
+                        if dataHolder.verbose : print(f"Removed flow {key}")
+                        keys.append(key)
+                    else:
+                        if dataHolder.verbose : print(f"Failed to remove flow {key}")
                 for key in keys:
                     del dataHolder.flows[key]
                 keys.clear()
             for key in dataHolder.topology:
                 if random.randrange(0, 4) == 0:
-                    dataHolder.dropHost(
+                    dropped = dataHolder.dropHost(
                         dataHolder.topology[key]['tp-switch'],
                         0,
                         random.randrange(0, 100),
@@ -154,5 +162,6 @@ if __name__ == "__main__":
                         dataHolder.topology[key]['mac'],
                         random.randrange(0, 100)
                     )
-                    if dataHolder.verbose : print(f"Blocking {key}")
+                    if dropped:
+                        if dataHolder.verbose : print(f"Blocking {key}")
         
