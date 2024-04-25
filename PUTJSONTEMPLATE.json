@@ -1,0 +1,31 @@
+{
+	"flow": {
+		"strict": "true",
+		"instructions": {
+			"instruction": {
+				"order": "0",
+				"apply-actions": {
+					"action": {
+						"order": "0",
+						"drop-action": {}
+					}
+				}
+			}
+		},
+		"table_id": "0",
+		"id": "1212",
+		"cookie_mask": "0",
+		"match": {
+			"ethernet-match": {
+				"ethernet-source": {
+					"address": "00:00:00:00:00:01"
+				}
+			}
+		},
+		"hard-timeout": "300",
+		"cookie": "1031",
+		"idle-timeout": "600",
+		"flow-name": "droper",
+		"priority": "20"
+	}
+}
